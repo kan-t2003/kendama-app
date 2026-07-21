@@ -143,6 +143,10 @@
 </div>
 
 <div class="panel" id="panel-trend">
+  <div class="rank-tabs">
+    <div class="rank-tab active" data-scope="self">自分だけ</div>
+    <div class="rank-tab" data-scope="all">全員</div>
+  </div>
   <div class="legend" id="legend"></div>
   <canvas id="trendCanvas"></canvas>
 </div>
@@ -225,12 +229,24 @@ document.getElementById('submitBtn').addEventListener('click', function(){
 var rankingData = null;
 var currentPeriod = 'thisWeek';
 
-document.querySelectorAll('.rank-tab').forEach(function(t){
+document.querySelectorAll('#panel-ranking .rank-tab').forEach(function(t){
   t.addEventListener('click', function(){
-    document.querySelectorAll('.rank-tab').forEach(function(x){ x.classList.remove('active'); });
+    document.querySelectorAll('#panel-ranking .rank-tab').forEach(function(x){ x.classList.remove('active'); });
     t.classList.add('active');
     currentPeriod = t.dataset.period;
     renderRanking();
+  });
+});
+
+var trendScope = 'self'; // 'self' or 'all'
+var trendRawData = null;
+
+document.querySelectorAll('#panel-trend .rank-tab').forEach(function(t){
+  t.addEventListener('click', function(){
+    document.querySelectorAll('#panel-trend .rank-tab').forEach(function(x){ x.classList.remove('active'); });
+    t.classList.add('active');
+    trendScope = t.dataset.scope;
+    if(trendRawData) drawTrend(filterTrendData(trendRawData));
   });
 });
 
@@ -280,9 +296,20 @@ function loadTrend(){
   fetch(GAS_URL + '?action=trend')
     .then(function(res){ return res.json(); })
     .then(function(json){
-      if(json.ok) drawTrend(json.data);
+      if(json.ok){
+        trendRawData = json.data;
+        drawTrend(filterTrendData(trendRawData));
+      }
     })
     .catch(function(){});
+}
+
+function filterTrendData(raw){
+  if(trendScope === 'all' || !USER){
+    return raw;
+  }
+  var mySeries = raw.series.filter(function(s){ return s.id === USER.userId; });
+  return { labels: raw.labels, series: mySeries };
 }
 
 function drawTrend(data){
