@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>けん玉チャレンジ</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  :root{
+    --bg:#171310;
+    --panel:#241d18;
+    --panel-edge:#332922;
+    --key:#3a2f27;
+    --key-active:#4a3c31;
+    --cream:#efe7da;
+    --dim:#9a8f80;
+    --accent:#c1502e;
+    --accent-dark:#9c3f24;
+    --gold:#e8b64a;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--cream);
+    font-family:"Hiragino Sans","Noto Sans JP",sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    padding:20px 16px 40px;
+  }
+  .header{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin-bottom:18px;
+  }
+  .header h1{ font-size:1.7rem; margin:0; letter-spacing:0.02em; }
+  .header h1 .accent{ color:var(--accent); }
+  .who{ font-size:0.8rem; color:var(--dim); text-align:right; }
+  .tabs{
+    display:flex; background:var(--panel); border:1px solid var(--panel-edge);
+    border-radius:14px; padding:5px; gap:4px; margin-bottom:18px;
+  }
+  .tab{
+    flex:1; text-align:center; padding:12px 4px; border-radius:10px;
+    font-size:0.95rem; color:var(--dim); cursor:pointer; user-select:none;
+  }
+  .tab.active{ background:var(--key-active); color:var(--cream); }
+  .panel{ display:none; }
+  .panel.active{ display:block; }
+  .board{
+    background:var(--panel); border:1px solid var(--panel-edge); border-radius:20px;
+    padding:28px 20px; text-align:center; margin-bottom:18px;
+  }
+  .board .label{ color:var(--dim); font-size:0.9rem; letter-spacing:0.3em; margin-bottom:8px; }
+  .board .count{ font-size:5.2rem; font-weight:700; line-height:1; }
+  .board .unit{
+    font-size:1.4rem; color:var(--dim); border:2px solid var(--dim); border-radius:6px;
+    padding:0 6px; vertical-align:middle; margin-left:6px;
+  }
+  .keypad{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px; }
+  .key{
+    background:var(--key); border:1px solid var(--panel-edge); border-radius:16px;
+    padding:26px 0; text-align:center; font-size:2rem; color:var(--cream);
+    cursor:pointer; user-select:none; transition:background 0.1s;
+  }
+  .key:active{ background:var(--key-active); }
+  .submit-btn{
+    display:block; width:100%; background:var(--accent); border:none; border-radius:16px;
+    padding:20px 0; font-size:1.15rem; font-weight:700; color:var(--cream); cursor:pointer;
+  }
+  .submit-btn:active{ background:var(--accent-dark); }
+  .submit-btn .accent-word{ color:#2a1710; }
+  .msg{ text-align:center; font-size:0.85rem; min-height:1.2em; margin:10px 0 0; }
+  .msg.ok{ color:#8fd19e; }
+  .msg.err{ color:#e08a7a; }
+  .rank-tabs{ display:flex; gap:8px; margin-bottom:12px; }
+  .rank-tab{
+    flex:1; text-align:center; padding:8px 0; border-radius:10px; background:var(--panel);
+    border:1px solid var(--panel-edge); color:var(--dim); font-size:0.85rem; cursor:pointer;
+  }
+  .rank-tab.active{ color:var(--cream); border-color:var(--accent); }
+  .row{
+    display:flex; align-items:center; background:var(--panel); border:1px solid var(--panel-edge);
+    border-radius:14px; padding:14px 16px; margin-bottom:8px;
+  }
+  .row.top3{ border-color:var(--gold); }
+  .rk{ width:34px; font-size:1.1rem; text-align:center; }
+  .nm{ flex:1; font-size:1rem; padding-left:8px; }
+  .ct{ font-size:1.3rem; font-weight:700; }
+  .ct small{ font-size:0.75rem; color:var(--dim); margin-left:2px; font-weight:400; }
+  .empty{ color:var(--dim); text-align:center; padding:30px 0; font-size:0.9rem; }
+  .legend{ display:flex; flex-wrap:wrap; gap:8px 14px; margin-bottom:14px; font-size:0.8rem; }
+  .legend-item{ display:flex; align-items:center; gap:6px; color:var(--dim); }
+  .legend-dot{ width:10px; height:10px; border-radius:50%; }
+  canvas{ width:100%; height:260px; display:block; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>けん玉<span class="accent">チャレンジ</span></h1>
+  <div class="who" id="who">読み込み中...</div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="record">記録する</div>
+  <div class="tab" data-tab="ranking">ランキング</div>
+  <div class="tab" data-tab="trend">推移</div>
+</div>
+
+<div class="panel active" id="panel-record">
+  <div class="board">
+    <div class="label">連続回数</div>
+    <div><span class="count" id="countDisplay">0</span><span class="unit">回</span></div>
+  </div>
+  <div class="keypad" id="keypad">
+    <div class="key" data-k="1">1</div>
+    <div class="key" data-k="2">2</div>
+    <div class="key" data-k="3">3</div>
+    <div class="key" data-k="4">4</div>
+    <div class="key" data-k="5">5</div>
+    <div class="key" data-k="6">6</div>
+    <div class="key" data-k="7">7</div>
+    <div class="key" data-k="8">8</div>
+    <div class="key" data-k="9">9</div>
+    <div class="key" data-k="C">C</div>
+    <div class="key" data-k="0">0</div>
+    <div class="key" data-k="DEL">⌫</div>
+  </div>
+  <button class="submit-btn" id="submitBtn">
+    けん玉<span class="accent-word">チャレンジ</span> この回数で記録する
+  </button>
+  <div class="msg" id="msg"></div>
+</div>
+
+<div class="panel" id="panel-ranking">
+  <div class="rank-tabs">
+    <div class="rank-tab active" data-period="thisWeek">今週</div>
+    <div class="rank-tab" data-period="lastWeek">先週</div>
+  </div>
+  <div id="rankingList"><div class="empty">読み込み中...</div></div>
+</div>
+
+<div class="panel" id="panel-trend">
+  <div class="legend" id="legend"></div>
+  <canvas id="trendCanvas"></canvas>
+</div>
+
+<script>
+/* ============================================================
+   設定：GASのウェブアプリURLとLIFF IDをここに入れてください
+   ============================================================ */
+var GAS_URL = 'PASTE_YOUR_GAS_WEBAPP_URL_HERE';
+var LIFF_ID = 'PASTE_YOUR_LIFF_ID_HERE';
+
+var USER = null;
+var currentCount = '0';
+
+document.querySelectorAll('.tab').forEach(function(tab){
+  tab.addEventListener('click', function(){
+    document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+    document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+    if(tab.dataset.tab === 'ranking') loadRanking();
+    if(tab.dataset.tab === 'trend') loadTrend();
+  });
+});
+
+document.getElementById('keypad').addEventListener('click', function(e){
+  var key = e.target.closest('.key');
+  if(!key) return;
+  var k = key.dataset.k;
+  if(k === 'C'){ currentCount = '0'; }
+  else if(k === 'DEL'){ currentCount = currentCount.length>1 ? currentCount.slice(0,-1) : '0'; }
+  else {
+    currentCount = (currentCount === '0') ? k : (currentCount + k);
+    if(currentCount.length > 5) currentCount = currentCount.slice(0,5);
+  }
+  document.getElementById('countDisplay').textContent = currentCount;
+});
+
+function setMsg(text, cls){
+  var m = document.getElementById('msg');
+  m.textContent = text;
+  m.className = 'msg ' + (cls||'');
+}
+
+document.getElementById('submitBtn').addEventListener('click', function(){
+  var count = Number(currentCount);
+  if(!USER){
+    setMsg('LINEログインの確認中です。少し待ってから再度お試しください。', 'err');
+    return;
+  }
+  if(!count && count !== 0){
+    setMsg('回数を入力してください。', 'err');
+    return;
+  }
+  setMsg('送信中...', '');
+  fetch(GAS_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'submit',
+      userId: USER.userId,
+      displayName: USER.displayName,
+      count: count
+    })
+  })
+  .then(function(res){ return res.json(); })
+  .then(function(json){
+    if(json.ok){
+      setMsg(count + '回を記録しました！', 'ok');
+      currentCount = '0';
+      document.getElementById('countDisplay').textContent = '0';
+    } else {
+      setMsg('記録に失敗しました：' + json.error, 'err');
+    }
+  })
+  .catch(function(err){
+    setMsg('通信エラー：' + err, 'err');
+  });
+});
+
+var rankingData = null;
+var currentPeriod = 'thisWeek';
+
+document.querySelectorAll('.rank-tab').forEach(function(t){
+  t.addEventListener('click', function(){
+    document.querySelectorAll('.rank-tab').forEach(function(x){ x.classList.remove('active'); });
+    t.classList.add('active');
+    currentPeriod = t.dataset.period;
+    renderRanking();
+  });
+});
+
+function loadRanking(){
+  document.getElementById('rankingList').innerHTML = '<div class="empty">読み込み中...</div>';
+  fetch(GAS_URL + '?action=ranking')
+    .then(function(res){ return res.json(); })
+    .then(function(json){
+      if(json.ok){ rankingData = json.data; renderRanking(); }
+      else { document.getElementById('rankingList').innerHTML = '<div class="empty">読み込みに失敗しました</div>'; }
+    })
+    .catch(function(){
+      document.getElementById('rankingList').innerHTML = '<div class="empty">通信エラーが発生しました</div>';
+    });
+}
+
+function renderRanking(){
+  if(!rankingData) return;
+  var list = rankingData[currentPeriod] || [];
+  var box = document.getElementById('rankingList');
+  if(list.length === 0){
+    box.innerHTML = '<div class="empty">まだ記録がありません</div>';
+    return;
+  }
+  var html = '';
+  list.forEach(function(r, i){
+    var cls = i<3 ? 'top3' : '';
+    var badge = i<3 ? ['🥇','🥈','🥉'][i] : (i+1);
+    html += '<div class="row '+cls+'">'
+          +   '<div class="rk">'+badge+'</div>'
+          +   '<div class="nm">'+escapeHtml(r.name)+'</div>'
+          +   '<div class="ct">'+r.max+'<small>回</small></div>'
+          + '</div>';
+  });
+  box.innerHTML = html;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+var trendColors = ['#c1502e','#e8b64a','#8fd19e','#7aa9d1','#c98a4a','#b57edc','#e07a9e','#9ad1c9','#d1c17a','#7ac9d1'];
+
+function loadTrend(){
+  fetch(GAS_URL + '?action=trend')
+    .then(function(res){ return res.json(); })
+    .then(function(json){
+      if(json.ok) drawTrend(json.data);
+    })
+    .catch(function(){});
+}
+
+function drawTrend(data){
+  var canvas = document.getElementById('trendCanvas');
+  var ctx = canvas.getContext('2d');
+  var dpr = window.devicePixelRatio || 1;
+  var cssW = canvas.clientWidth || 320;
+  var cssH = 260;
+  canvas.width = cssW * dpr;
+  canvas.height = cssH * dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,cssW,cssH);
+
+  var labels = data.labels;
+  var series = data.series;
+  var padL = 34, padR = 10, padT = 14, padB = 24;
+  var plotW = cssW - padL - padR;
+  var plotH = cssH - padT - padB;
+
+  var allVals = [];
+  series.forEach(function(s){ s.data.forEach(function(v){ if(v!==null) allVals.push(v); }); });
+  var maxVal = allVals.length ? Math.max.apply(null, allVals) : 10;
+  maxVal = Math.ceil(maxVal * 1.15) || 10;
+
+  ctx.strokeStyle = '#332922';
+  ctx.lineWidth = 1;
+  ctx.font = '11px sans-serif';
+  ctx.fillStyle = '#9a8f80';
+  var gridLines = 4;
+  for(var g=0; g<=gridLines; g++){
+    var y = padT + plotH - (plotH * g / gridLines);
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(cssW - padR, y);
+    ctx.stroke();
+    ctx.fillText(Math.round(maxVal * g / gridLines), 2, y+4);
+  }
+  labels.forEach(function(l, i){
+    var x = padL + (plotW * i / (labels.length-1 || 1));
+    ctx.fillText(l, x-12, cssH-6);
+  });
+
+  var legendHtml = '';
+  series.forEach(function(s, si){
+    var color = trendColors[si % trendColors.length];
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    var started = false;
+    s.data.forEach(function(v, i){
+      if(v === null) { started = false; return; }
+      var x = padL + (plotW * i / (labels.length-1 || 1));
+      var y = padT + plotH - (plotH * v / maxVal);
+      if(!started){ ctx.moveTo(x,y); started = true; } else { ctx.lineTo(x,y); }
+    });
+    ctx.stroke();
+    s.data.forEach(function(v, i){
+      if(v === null) return;
+      var x = padL + (plotW * i / (labels.length-1 || 1));
+      var y = padT + plotH - (plotH * v / maxVal);
+      ctx.beginPath();
+      ctx.arc(x,y,3,0,Math.PI*2);
+      ctx.fillStyle = color;
+      ctx.fill();
+    });
+    legendHtml += '<div class="legend-item"><span class="legend-dot" style="background:'+color+'"></span>'+escapeHtml(s.name)+'</div>';
+  });
+  document.getElementById('legend').innerHTML = legendHtml || '<div class="empty">まだ記録がありません</div>';
+}
+
+(function init(){
+  if(typeof liff === 'undefined'){
+    document.getElementById('who').textContent = 'LIFF未読込';
+    return;
+  }
+  liff.init({ liffId: LIFF_ID })
+    .then(function(){
+      if(!liff.isLoggedIn()){ liff.login(); return; }
+      return liff.getProfile();
+    })
+    .then(function(profile){
+      if(!profile) return;
+      USER = { userId: profile.userId, displayName: profile.displayName };
+      document.getElementById('who').textContent = profile.displayName + ' さん';
+    })
+    .catch(function(err){
+      document.getElementById('who').textContent = '初期化エラー';
+      setMsg('LIFFの初期化に失敗しました：' + err, 'err');
+    });
+})();
+</script>
+</body>
+</html>
