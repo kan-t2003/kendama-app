@@ -305,11 +305,30 @@ function loadTrend(){
 }
 
 function filterTrendData(raw){
+  var filtered;
   if(trendScope === 'all' || !USER){
-    return raw;
+    filtered = raw;
+  } else {
+    var mySeries = raw.series.filter(function(s){ return s.id === USER.userId; });
+    filtered = { labels: raw.labels, series: mySeries };
   }
-  var mySeries = raw.series.filter(function(s){ return s.id === USER.userId; });
-  return { labels: raw.labels, series: mySeries };
+  return trimLeadingEmpty(filtered);
+}
+
+// 全系列がnull(記録なし)の先頭週を切り詰め、実データがある週から表示する
+function trimLeadingEmpty(data){
+  var labels = data.labels, series = data.series;
+  if(!series || series.length === 0) return data;
+  var firstIndex = labels.length; // 見つからなければ全部空
+  for(var i=0; i<labels.length; i++){
+    var hasData = series.some(function(s){ return s.data[i] !== null; });
+    if(hasData){ firstIndex = i; break; }
+  }
+  if(firstIndex >= labels.length) firstIndex = labels.length - 1; // 最低1週は表示
+  return {
+    labels: labels.slice(firstIndex),
+    series: series.map(function(s){ return { id:s.id, name:s.name, data:s.data.slice(firstIndex) }; })
+  };
 }
 
 function drawTrend(data){
