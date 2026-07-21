@@ -93,7 +93,7 @@
   .legend{ display:flex; flex-wrap:wrap; gap:8px 14px; margin-bottom:14px; font-size:0.8rem; }
   .legend-item{ display:flex; align-items:center; gap:6px; color:var(--dim); }
   .legend-dot{ width:10px; height:10px; border-radius:50%; }
-  canvas{ width:100%; height:260px; display:block; }
+  canvas{ width:100%; height:420px; display:block; }
 </style>
 </head>
 <body>
@@ -317,7 +317,7 @@ function drawTrend(data){
   var ctx = canvas.getContext('2d');
   var dpr = window.devicePixelRatio || 1;
   var cssW = canvas.clientWidth || 320;
-  var cssH = 260;
+  var cssH = 420;
   canvas.width = cssW * dpr;
   canvas.height = cssH * dpr;
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -325,7 +325,8 @@ function drawTrend(data){
 
   var labels = data.labels;
   var series = data.series;
-  var padL = 34, padR = 10, padT = 14, padB = 24;
+  var showValueLabels = series.length === 1;
+  var padL = 40, padR = 12, padT = showValueLabels ? 28 : 14, padB = 24;
   var plotW = cssW - padL - padR;
   var plotH = cssH - padT - padB;
 
@@ -338,7 +339,7 @@ function drawTrend(data){
   ctx.lineWidth = 1;
   ctx.font = '11px sans-serif';
   ctx.fillStyle = '#9a8f80';
-  var gridLines = 4;
+  var gridLines = 8;
   for(var g=0; g<=gridLines; g++){
     var y = padT + plotH - (plotH * g / gridLines);
     ctx.beginPath();
@@ -374,6 +375,14 @@ function drawTrend(data){
       ctx.arc(x,y,3,0,Math.PI*2);
       ctx.fillStyle = color;
       ctx.fill();
+      if(showValueLabels){
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillStyle = '#efe7da';
+        ctx.textAlign = 'center';
+        ctx.fillText(v, x, y-10);
+        ctx.textAlign = 'left';
+        ctx.font = '11px sans-serif';
+      }
     });
     legendHtml += '<div class="legend-item"><span class="legend-dot" style="background:'+color+'"></span>'+escapeHtml(s.name)+'</div>';
   });
